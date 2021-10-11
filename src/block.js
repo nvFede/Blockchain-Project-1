@@ -3,7 +3,7 @@
  *  The Block class is a main component into any Blockchain platform, 
  *  it will store the data and act as a dataset for your application.
  *  The class will expose a method to validate the data... The body of
- *  the block will contain an Object that contain the data to be stored,
+ *  the block will contain an Object that contain the data to be stored,node
  *  the data should be stored encoded.
  *  All the exposed methods should return a Promise to allow all the methods 
  *  run asynchronous.
@@ -45,7 +45,19 @@ class Block {
             // Returning the Block is not valid
             
             // Returning the Block is valid
-
+           try {
+            
+                const cHash = self.hash;
+                self.hash = null;
+                const nHash = SHA256(JSON.stringify(self)).toString();
+                // Comparing if the hashes changed
+                self.hash = cHash;
+                // Returning the Block is not valid
+                resolve(cHash === nHash);
+                // Returning the Block is valid
+            } catch (err) {
+                reject(new Error(err)); 
+            }
         });
     }
 
@@ -64,7 +76,24 @@ class Block {
         // Parse the data to an object to be retrieve.
 
         // Resolve with the data if the object isn't the Genesis block
-
+        let self = this;
+        return new Promise(async (resolve, reject) => {
+            if (self.height == 0) {
+                resolve("This is the Genesis Block");
+            }
+            // Getting the encoded data saved in the Block
+            let encodedData = this.body;
+            // Decoding the data to retrieve the JSON representation of the object
+            let decodedData = hex2ascii(encodedData);
+            // Parse the data to an object to be retrieve.
+            let dataObject = JSON.parse(decodedData);
+            // Resolve with the data if the object isn't the Genesis block
+            if (dataObject) {
+                resolve(dataObject);
+            } else {
+                reject(Error("The Block has no data."))
+            }
+        });
     }
 
 }
