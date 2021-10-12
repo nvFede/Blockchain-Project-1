@@ -96,7 +96,7 @@ class Blockchain {
      */
     requestMessageOwnershipVerification(address) {
         return new Promise((resolve) => {
-            
+            resolve(`${address}:${new Date().getTime().toString().slice(0, -3)}:starRegistry`)
         });
     }
 
@@ -120,8 +120,20 @@ class Blockchain {
     submitStar(address, message, signature, star) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            
-        });
+            let messageTime = parseInt(message.split(':')[1]);
+            let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
+            if((currentTime-messageTime) > 300){
+                reject(new Error('More Than Five Minutes'));
+                return;
+            };
+            if(!bitcoinMessage.verify(message, address, signature)){
+                reject(new Error('Invalid Message'));
+                return;
+            };
+            let data = {address: address, message: message, signature: signature, star: star};
+            let block = new BlockClass.Block(data)
+            await self._addBlock(block)
+            resolve(block);
     }
 
     /**
@@ -131,10 +143,26 @@ class Blockchain {
      * @param {*} hash 
      */
     getBlockByHash(hash) {
+
         let self = this;
+
         return new Promise((resolve, reject) => {
-           
+
+        let block_found = self.chain.filter(function(block) {
+
+            return block.hash === hash;
         });
+
+        if(block_found !== null){
+            resolve(block_found);
+        }
+
+        if(block_found == null){
+            reject ('Block By hash not Found');
+        }
+
+        });
+
     }
 
     /**
@@ -164,22 +192,40 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            
+            self.chain.forEach((b) => {
+                let data = b.getBData();
+                if(data){
+                    if (data.owner === address){
+                        stars.push(data);
+                    }
+                }
+            });
+            resolve(stars);
         });
     }
-
     /**
      * This method will return a Promise that will resolve with the list of errors when validating the chain.
      * Steps to validate:
      * 1. You should validate each block using `validateBlock`
      * 2. Each Block should check the with the previousBlockHash
      */
-    validateChain() {
+     validateChain() {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
+            for(let block of self.chain){
+                if(await block.validate()){
+                    if(block.height>0){
+                        let preBlock = self.chain.filter(b=>b.height==block.height-1)
+                        if(block.previousBlockHash!==preBlock.hash){
+                            errorLog.push(new Error('Invalid Link'))
+                 }
             
-        });
+             }
+        }else{
+        errorLog.push(new Error('Invalid Block'))
+         }
+    errorLog.length > 0 ? resolve(errorLog):resolve('No error')
     }
 
 }
